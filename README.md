@@ -83,4 +83,23 @@ You will then want to restart the Docker service or reboot your system before pr
 
 * For easy calibration with Kalibr, a docker image is available [here](https://github.com/mzahana/kalibr/tree/master/docker)
 
-* **NOTE** There is a shared folder between the container (container name is `vins_gpu`) and the host system (Xavier) in order to easily share files between the two. The shared folder is located in the home folder of the host (Xavier) under the name `vins_gpu_shared_volume`, and available inside the container's home folder under the name `shared_folder` 
+* **NOTE** There is a shared folder between the container (container name is `vins_gpu`) and the host system (Xavier) in order to easily share files between the two. The shared folder is located in the home folder of the host (Xavier) under the name `vins_gpu_shared_volume`, and available inside the container's home folder under the name `shared_folder`
+
+## Runing on Jetson Nano
+Althouhg this package was not tested on Jetson Nano, in theory it should work. However, you need to make sure that you increase the swap size
+
+**Add a swap of 4GB**
+```bash
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+sudo swapon --show
+sudo cp /etc/fstab /etc/fstab.bak
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab 
+```
+**To lock Jetson Nano at its maximum frequency and power mode by running the following commands:**
+```bash
+sudo jetson_clocks
+sudo nvpmodel -m 0 
+```
