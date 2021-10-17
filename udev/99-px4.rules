@@ -1,0 +1,2 @@
+ACTION=="add", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="px4"
+

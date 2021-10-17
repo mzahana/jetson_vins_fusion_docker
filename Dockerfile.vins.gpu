@@ -1,0 +1,222 @@
+#
+# this dockerfile roughly follows the 'Ubuntu install of ROS Melodic' from:
+#   http://wiki.ros.org/melodic/Installation/Ubuntu
+#
+ARG BASE_IMAGE=Dockerfile.ros.melodic
+FROM ${BASE_IMAGE}
+
+ARG ROS_PKG=ros_base
+ENV ROS_DISTRO=melodic
+ENV ROS_ROOT=/opt/ros/${ROS_DISTRO}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /
+
+# Create src folder inside the HOME folder
+# This is for installing non-ROS packages from source
+RUN cd $HOME && mkdir src
+
+RUN apt update && apt-get install -y --no-install-recommends \
+        software-properties-common \
+        apt-utils \
+        gedit \
+        net-tools \
+        iputils-ping \
+        nano \
+        bash-completion \
+        python3-pip \
+        python-catkin-tools \
+        libcurl4-openssl-dev \
+        &&  rm -rf /var/lib/apt/lists/*
+
+# Eigen 3.3.7
+#  Remove pre-built Eigen
+#RUN apt-get remove libeigen3-dev
+RUN apt update && apt install -y unzip 
+RUN cd $HOME/src/ &&\
+    wget -O eigen.zip https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.zip &&\
+    unzip eigen.zip &&\
+    mkdir eigen-build && cd eigen-build &&\
+    cmake ../eigen-3.3.7/ && make install
+#pkg-config --modversion eigen3 # Check Eigen Version
+
+# Add MAVLink and mavros
+RUN apt-get update && apt-get -y --quiet --no-install-recommends install \
+		geographiclib-tools \
+		libgeographic-dev \
+		libyaml-cpp-dev \
+		python-pip \
+		python-tk \
+		ros-melodic-mav-msgs \
+		ros-melodic-mavlink \
+		ros-melodic-mavros \
+		ros-melodic-mavros-extras \
+	&& geographiclib-get-geoids egm96-5 \
+	&& apt-get -y autoremove \
+	&& apt-get clean autoclean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create ROS catkin_ws to host ROS packages
+RUN mkdir -p $HOME/catkin_ws/src \
+    && cd $HOME/catkin_ws \
+    && catkin init \
+    && catkin config --cmake-args -DCMAKE_BUILD_TYPE=Release \
+    && catkin config --merge-devel \
+    && catkin config --extend /opt/ros/$ROS_DISTRO \
+    && catkin build
+
+# Ceres solver
+RUN apt update && apt install -y libgoogle-glog-dev libatlas-base-dev libsuitesparse-dev
+RUN cd $HOME/src/ &&\
+    wget http://ceres-solver.org/ceres-solver-1.14.0.tar.gz &&\
+    tar zxf ceres-solver-1.14.0.tar.gz &&\
+    mkdir ceres-bin &&\
+    mkdir solver && cd ceres-bin &&\
+    cmake ../ceres-solver-1.14.0 -DEXPORT_BUILD_DIR=ON &&\
+    make -j3 &&\
+    make install &&\
+    bin/simple_bundle_adjuster ../ceres-solver-1.14.0/data/problem-16-22106-pre.txt
+
+# remove prebuilt opencv
+RUN apt-get purge libopencv* python-opencv 
+RUN apt-get update &&\
+    apt-get install -y build-essential pkg-config
+
+RUN apt-get install -y cmake libavcodec-dev libavformat-dev libavutil-dev \
+    libglew-dev libgtk2.0-dev libgtk-3-dev libjpeg-dev libpng-dev libpostproc-dev \
+    libswscale-dev libtbb-dev libtiff5-dev libv4l-dev libxvidcore-dev \
+    libx264-dev qt5-default zlib1g-dev libgl1 libglvnd-dev pkg-config \
+    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev mesa-utils     
+
+RUN apt-get install -y python2.7-dev python3-dev python-numpy python3-numpy
+
+#
+# setup environment
+#
+ENV CUDA_HOME="/usr/local/cuda"
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+#
+# Download & install OpenCV - https://github.com/mdegans/nano_build_opencv/blob/master/build_opencv.sh
+#
+
+# OpenCV looks for the cuDNN version in cudnn_version.h, but it's been renamed to cudnn_version_v8.h
+RUN ln -s /usr/include/aarch64-linux-gnu/cudnn_version_v8.h /usr/include/aarch64-linux-gnu/cudnn_version.h
+
+ARG OPENCV_VERSION="3.4.1"
+RUN cd $HOME/src/ &&\
+    git clone --depth 1 --branch ${OPENCV_VERSION} https://github.com/opencv/opencv.git &&\
+    cd opencv && mkdir build && cd build &&\
+    cmake   -D CMAKE_BUILD_TYPE=RELEASE \
+            -D BUILD_EXAMPLES=OFF \
+            -D BUILD_TESTS=OFF \
+            -D BUILD_PERF_TESTS=OFF \
+            -D CPACK_BINARY_DEB=ON \
+            -D EIGEN_INCLUDE_PATH=/usr/include/eigen3 \
+	        -D WITH_EIGEN=ON \
+            -D CMAKE_INSTALL_PREFIX=/usr/local \
+            -D BUILD_opencv_java=OFF \
+            -D WITH_CUDA=ON \
+            -D CUDA_ARCH_BIN=5.3,6.2,7.2 \
+            -D CUDA_ARCH_PTX="" \
+            -D ENABLE_FAST_MATH=ON \
+            -D CUDA_FAST_MATH=ON \
+            -D WITH_CUBLAS=ON \
+            -D WITH_LIBV4L=ON \
+            -D WITH_GSTREAMER=ON \
+            -D WITH_GSTREAMER_0_10=OFF \
+            -D WITH_QT=ON \
+            -D WITH_OPENGL=ON \
+            -D WITH_IPP=OFF \
+            -D CUDA_NVCC_FLAGS="--expt-relaxed-constexpr" \
+            -D WITH_TBB=ON \
+            ../
+
+# references to related OpenCV compilation problems:
+# Ref1: https://forums.developer.nvidia.com/t/opencv-with-gl-support-at-xavier/76752
+# Ref2: https://forums.developer.nvidia.com/t/building-opencv-with-opengl-support/49741/17
+# WARNING: The following COPY won't work as /usr/local/cuda/ is actually a mounted volume from the host!
+# You will need to modify /usr/local/cuda/include/cuda_gl_interop.h on the HOST system
+# COPY ./packages/cuda_gl_interop.h /usr/local/cuda/include/
+# COPY ./packages/cuda_gl_interop.h /usr/local/cuda-10.2/include/
+RUN cd /usr/lib/aarch64-linux-gnu/ &&\
+    ln -sf libGL.so.1.0.0 libGL.so
+
+RUN cd $HOME/src/opencv/build/ && make -j$(nproc)
+RUN cd $HOME/src/opencv/build/ && make install
+RUN cd $HOME/src/opencv/build/ && make package
+
+# Make OpenCV debian pkgs so it can be easily installed later
+RUN cd $HOME/src/opencv/build/ && tar -czvf OpenCV-${OPENCV_VERSION}-aarch64.tar.gz *.deb
+#Can save ~ 10GB !
+#RUN cd $HOME/src/ && rm -rf opencv
+RUN pkg-config --modversion opencv
+
+#
+# Install cv_bridge from source
+#
+RUN cd $HOME/catkin_ws/src &&\
+    git clone --branch $ROS_DISTRO https://github.com/ros-perception/vision_opencv
+
+# Finally build cv_bridge    
+RUN cd $HOME/catkin_ws/ && catkin build
+
+#
+# VINS-FUSION-GPU
+#
+
+# Dependecies
+RUN apt update && apt install -y ros-melodic-tf \
+    ros-melodic-image-transport \
+    ros-melodic-rviz
+
+RUN cd $HOME/catkin_ws/src &&\
+    git clone https://github.com/pjrambo/VINS-Fusion-gpu
+
+COPY ./patches/vins-fusion/loop_fusion/CMakeLists.txt /root/catkin_ws/src/VINS-Fusion-gpu/loop_fusion/
+COPY ./patches/vins-fusion/vins_estimator/CMakeLists.txt /root/catkin_ws/src/VINS-Fusion-gpu/vins_estimator/
+
+# Build
+RUN cd $HOME/catkin_ws/ &&\
+    bash devel/setup.bash &&\
+    catkin build camera_models
+
+RUN cd $HOME/catkin_ws/ &&\
+    bash devel/setup.bash &&\
+    catkin build
+
+#
+# Realsense SDK
+#
+RUN apt install -y rsync
+# librealsense
+RUN cd $HOME/src/ &&\
+    git clone https://github.com/jetsonhacks/installRealSenseSDK.git &&\
+    cd installRealSenseSDK &&\
+    ./installLibrealsense.sh
+# realsense-ros package
+RUN cd $HOME/src/ &&\
+    git clone https://github.com/mzahana/installRealSenseROS.git &&\
+    cd installRealSenseROS &&\
+    ./installRealSenseROS.sh
+# NOTE: You will need to run the 'installRealSenseROS/disableAutosuspend.sh' script on the HOST; NOT inside the container 
+
+# A convenience package that has some launch files to run all VINS nodes at once instead of doing it on multiple terminals
+# Also has some config YAML files for D435i depth camera
+RUN cd $HOME/catkin_ws/src/ &&\
+    git clone https://github.com/mzahana/jetson_vins_fusion_scripts.git &&\
+    cd $HOME/catkin_ws/ && catkin build
+
+
+RUN echo "source /etc/profile.d/bash_completion.sh" >> /root/.bashrc
+
+# ROS setup.bash scripts
+RUN echo 'source /opt/ros/${ROS_DISTRO}/setup.bash' >> /root/.bashrc
+RUN echo 'source /root/catkin_ws/devel/setup.bash' >> /root/.bashrc
+
+# setup entrypoint
+COPY ./packages/ros_entrypoint.sh /ros_entrypoint.sh
+ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["bash"]
+WORKDIR /root
