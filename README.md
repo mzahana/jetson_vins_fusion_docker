@@ -5,6 +5,16 @@ This repository provides Docker files and scripts to easily setup and run [VINS-
 
 This repository is inspired by [jteson-containers](https://github.com/dusty-nv/jetson-containers) and [vins-fusion-gpu-tx2-nano](https://github.com/arjunskumar/vins-fusion-gpu-tx2-nano)
 
+# Docker image
+The Docker image `Docker.vins.gpu` contains
+* Ubuntu 18
+* ROS melodic 
+* VINS-FUSION-gpu
+* MAVROS/MAVLink
+* Realsense SDK
+* `realsense-ros` package
+* [`jetson_vins_fusion_scripts`](https://github.com/mzahana/jetson_vins_fusion_scripts)
+
 # Installtion steps
 
 ## Hardware
@@ -51,10 +61,17 @@ You will then want to restart the Docker service or reboot your system before pr
 
 * Once the container is running, an interactive terminal (inside the container) will be running. 
 
-* You can run the VINS node(s) using the following command
-```bash
-roslaunch jetson_vins_fusion_scripts vins.launch 
-```
+# Running VINS nodes
+* The `Docker.vins.gpu` image comes with a convenience ROS package, [jetson_vins_fusion_scripts](https://github.com/mzahana/jetson_vins_fusion_scripts), which has some launch files and configuration files for the VINS-FUSION-gpu package
+
+* You can run the VINS node (loop_fusion, vins_node) using the following command
+    ```bash
+    roslaunch jetson_vins_fusion_scripts vins.launch 
+    ```
+    The `vins.launch` script runs two nodes, loop_fusion, and vins_node). To disable the loop_fusion,
+    ```bash
+    roslaunch jetson_vins_fusion_scripts vins.launch run_loop_fusion:=false
+    ```
 
 * Then you can either run a bag file in another terminal (you can log into the container again using `vins_container` alias)
     ```bash
