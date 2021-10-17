@@ -32,7 +32,7 @@ You will then want to restart the Docker service or reboot your system before pr
 ## Building the docker image
 * Open a terminal, and execute the folllwing commands
     ```bash
-    # Craete directory
+    # Create a directory to clone this package into
     mkdir -p $HOME/src && cd $HOME/src/
     # Clone this package
     git clone https://github.com/mzahana/jetson_vins_fusion_docker.git
@@ -57,11 +57,13 @@ roslaunch jetson_vins_fusion_scripts vins.launch
 ```
 
 * Then you can either run a bag file in another terminal (you can log into the container again using `vins_container` alias)
-```bash
-rosbag play bag_name.bag
-```
-You can downlod one of the [EuROC bags(https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets)]
+    ```bash
+    rosbag play bag_name.bag
+    ```
+    You can downlod one of the [EuROC bags](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets), inside the container using `wget` command
 
 * The [jetson_vins_fusion_scripts](https://github.com/mzahana/jetson_vins_fusion_scripts) package also has example configuration files for D435i cameras to use with VINS-FUSION. You will need to calibrate the D435i IMU using [this document](https://github.com/arjunskumar/vins-fusion-gpu-tx2-nano/blob/master/docs/RealSense_Depth_D435i_IMU_Calib.pdf). Then you need to calbrate the stereo setup+IMU using [Kalibr](https://github.com/ethz-asl/kalibr/wiki/multiple-camera-calibration)
 
 * For easy calibration with Kalibr, a docker image is available [here](https://github.com/mzahana/kalibr/tree/master/docker)
+
+* **NOTE** There is a shared folder between the container (container name is `vins_gpu`) and the host system (Xavier) in order to easily share files between the two. The shared folder is located in the home folder of the host (Xavier) under the name `vins_gpu_shared_volume`, and available inside the container's home folder under the name `shared_folder` 
