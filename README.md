@@ -103,3 +103,30 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 sudo jetson_clocks
 sudo nvpmodel -m 0 
 ```
+# Using VINS with cameras
+ 
+## Intel Realsense D435i
+* Install the docker image as described above
+* Calibrate the D435i IMU as described [here](https://github.com/arjunskumar/vins-fusion-gpu-tx2-nano/blob/master/docs/RealSense_Depth_D435i_IMU_Calib.pdf)
+* Calibrate the D435i stereo infrared cameras
+    * Prepare a [calibration target](https://github.com/ethz-asl/kalibr/wiki/calibration-targets). It is recommended to print an apriltag calibration target, you can download from [here](https://github.com/ethz-asl/kalibr/wiki/downloads)
+    * Connect the D435i camera using the USB C cable
+    * If you are using a PC, make sure to install Realsense SDK and [realsense-ros](https://github.com/IntelRealSense/realsense-ros) in order to run the D435i. Otherwise, you can run it directly in the docker container provided by this repo
+    * Run the `rs_camera.launch` script
+        ```bash
+        roslaunch jetson_vins_fusion_scripts rs_camera.launch
+        ```
+    * Record a ROS bag with the D435i two infra camera topics
+        ```bash
+        rosbag record -o d43i_stereo_imu.bag /img1_tpoic /img2_topic
+        ```
+        **NOTE** Make sure to write the topic names correctly
+    * You will need to print a calibration target (apriltag target is recommended, see [here](https://github.com/ethz-asl/kalibr/wiki/calibration-targets) )
+    * Calibrate the D435i stereo camera using Kalibr nad the recorded rosbag. For convenience, a docker image with Kalibr is available [here](https://github.com/mzahana/kalibr/tree/master/docker)
+    * Use Kalibr [camera-IMU calibration](https://github.com/ethz-asl/kalibr/wiki/camera-imu-calibration)
+    * Use the calibration results from Kalibr to update VINS [configuratoin files](https://github.com/mzahana/jetson_vins_fusion_scripts/tree/main/config/d435i). Those configuration files would be available inside the `vins_gpu` container in `~/catkin_ws/jetson_vins_fusion_scripts/config/d435i`
+* Inside the container terminal, tun `vins` nodes
+```bash
+roslaunch jetson_vins_fusion_scripts vins.launch config_file:=/root/catkin_ws/src/
+jetson_vins_fusion_scripts/config/d435i/rs_stereo_imu_confg.yaml
+```
