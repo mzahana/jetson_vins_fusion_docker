@@ -122,10 +122,10 @@ sudo nvpmodel -m 0
         ```
         **NOTE** Make sure to write the topic names correctly
     * You will need to print a calibration target (apriltag target is recommended, see [here](https://github.com/ethz-asl/kalibr/wiki/calibration-targets) )
-    * Calibrate the D435i stereo camera using Kalibr nad the recorded rosbag. For convenience, a docker image with Kalibr is available [here](https://github.com/mzahana/kalibr/tree/master/docker)
+    * Calibrate the D435i stereo camera using Kalibr and the recorded rosbag. For convenience, a docker image with Kalibr is available [here](https://github.com/mzahana/kalibr/tree/master/docker)
     * Use Kalibr [camera-IMU calibration](https://github.com/ethz-asl/kalibr/wiki/camera-imu-calibration)
-    * Use the calibration results from Kalibr to update VINS [configuratoin files](https://github.com/mzahana/jetson_vins_fusion_scripts/tree/main/config/d435i). Those configuration files would be available inside the `vins_gpu` container in `~/catkin_ws/jetson_vins_fusion_scripts/config/d435i`
-* Inside the container terminal, tun `vins` nodes
+    * Use the calibration results from Kalibr to update VINS [configuratoin files](https://github.com/mzahana/jetson_vins_fusion_scripts/tree/main/config/d435i). The VINS configuration files would be available inside the `vins_gpu` container in `~/catkin_ws/jetson_vins_fusion_scripts/config/d435i`
+* Inside the container terminal, run `vins` nodes
 ```bash
 roslaunch jetson_vins_fusion_scripts vins.launch config_file:=/root/catkin_ws/src/
 jetson_vins_fusion_scripts/config/d435i/rs_stereo_imu_confg.yaml
