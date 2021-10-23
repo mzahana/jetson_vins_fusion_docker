@@ -59,7 +59,9 @@ You will then want to restart the Docker service or reboot your system before pr
 
 * An alias will be added in the `~/.bashrc` for convenience. The alias is called `vins_container`. You can simply run the VINS container by executing `vins_container` in a terminal window
 
-* Once the container is running, an interactive terminal (inside the container) will be running. 
+* Once the container is running, an interactive terminal inside the container can be used. 
+
+**NOTE** The docker image includes installations of `Realsense SDK` and `realsense-ros` in case the D435i cameras is used with VINS. Make sure to donload the [installRealSenseROS](https://github.com/mzahana/installRealSenseROS) package on the Jetson board, and run the `disableAutosuspend.sh` to turn off the USB autosuspend setting on the Jetson so that the camera is always available. Then reboot for the changes to take effect.
 
 # Running VINS nodes
 * The `Docker.vins.gpu` image comes with a convenience ROS package, [jetson_vins_fusion_scripts](https://github.com/mzahana/jetson_vins_fusion_scripts), which has some launch files and configuration files for the VINS-FUSION-gpu package
