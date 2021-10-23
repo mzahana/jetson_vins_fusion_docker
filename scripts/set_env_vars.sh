@@ -2,7 +2,7 @@
 # Author Mohamed Abdelkader, mohamedashraf123@gmail.com
 
 FILE_NAME="vins_env_vars.txt"
-
+PKG_NAME="jetson_vins_fusion_docker"
 if [ -z "$1" ]
   then
     echo "Environment variables txt file name is not passed. Using vins_env_vars.txt"
@@ -11,12 +11,12 @@ else
 fi
 echo "Environment varilable file name = $FILE_NAME"
 
-if [ -d "$HOME/jetson_vins_fusion_docker" ]; then
-    file="$HOME/jetson_vins_fusion_docker/scripts/$FILE_NAME"
-elif [ -d "$HOME/src/jetson_vins_fusion_docker" ]; then
-    file="$HOME/src/jetson_vins_fusion_docker/scripts/$FILE_NAME"
+if [ -d "$HOME/${PKG_NAME}" ]; then
+    file="$HOME/${PKG_NAME}/scripts/$FILE_NAME"
+elif [ -d "$HOME/src/${PKG_NAME}" ]; then
+    file="$HOME/src/${PKG_NAME}/scripts/$FILE_NAME"
 else
-    echo "ERROR Could not find jetson-containers package. Exiting" && echo
+    echo "ERROR Could not find ${PKG_NAME} package. Exiting" && echo
     exit 1
 fi
 # TODO if the env_vars.txt is empty, through an error and exit
