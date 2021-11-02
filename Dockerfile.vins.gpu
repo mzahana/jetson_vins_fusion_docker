@@ -149,8 +149,11 @@ RUN cd $HOME/src/opencv/build/ && make package
 
 # Make OpenCV debian pkgs so it can be easily installed later
 RUN cd $HOME/src/opencv/build/ && tar -czvf OpenCV-${OPENCV_VERSION}-aarch64.tar.gz *.deb
+RUN cp $HOME/src/opencv/build/OpenCV-${OPENCV_VERSION}-aarch64.tar.gz $HOME/src/
 #Can save ~ 10GB !
-#RUN cd $HOME/src/ && rm -rf opencv
+RUN rm -rf $HOME/src/opencv/build
+
+# Check opencv verison
 RUN pkg-config --modversion opencv
 
 #
@@ -190,11 +193,32 @@ RUN cd $HOME/catkin_ws/ &&\
 # Realsense SDK
 #
 RUN apt install -y rsync
-# librealsense
-RUN cd $HOME/src/ &&\
-    git clone https://github.com/jetsonhacks/installRealSenseSDK.git &&\
-    cd installRealSenseSDK &&\
-    ./installLibrealsense.sh
+# dependencies
+RUN apt-get install -y libssl-dev freeglut3-dev libusb-1.0-0-dev pkg-config libgtk-3-dev unzip
+
+# From source
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE || apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE
+RUN add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u
+RUN cd $HOME/src &&\
+    wget https://github.com/IntelRealSense/librealsense/archive/v2.48.0.tar.gz &&\
+    tar -xvf v2.48.0.tar.gz
+RUN cd $HOME/src/librealsense-2.48.0/config &&\
+    cp 99-realsense-libusb.rules /etc/udev/rules.d/ 
+RUN cd $HOME/src/librealsense-2.48.0/ && mkdir build && cd build &&\
+    cmake ../ \
+        -DFORCE_RSUSB_BACKEND=true \
+        -DCMAKE_BUILD_TYPE=release \
+        -DBUILD_EXAMPLES=true \
+        -DBUILD_WITH_CUDA=true \
+        -DBUILD_GRAPHICAL_EXAMPLES=true &&\
+    make -j$(nproc) && make clean && make install
+
+# From binaries
+# RUN cd $HOME/src/ &&\
+#     git clone https://github.com/jetsonhacks/installRealSenseSDK.git &&\
+#     cd installRealSenseSDK &&\
+#     ./installLibrealsense.sh
+
 # realsense-ros package
 RUN cd $HOME/src/ &&\
     git clone https://github.com/mzahana/installRealSenseROS.git &&\
