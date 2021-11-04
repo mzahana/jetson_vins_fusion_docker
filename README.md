@@ -81,11 +81,11 @@ You will then want to restart the Docker service or reboot your system before pr
     ```
     You can downlod one of the [EuROC bags](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets), inside the container using `wget` command
 
-* The [jetson_vins_fusion_scripts](https://github.com/mzahana/jetson_vins_fusion_scripts) package also has example configuration files for D435i cameras to use with VINS-FUSION. You will need to calibrate the D435i IMU using [this document](https://github.com/arjunskumar/vins-fusion-gpu-tx2-nano/blob/master/docs/RealSense_Depth_D435i_IMU_Calib.pdf). Then you need to calbrate the stereo setup+IMU using [Kalibr](https://github.com/ethz-asl/kalibr/wiki/multiple-camera-calibration)
+* The [jetson_vins_fusion_scripts](https://github.com/mzahana/jetson_vins_fusion_scripts) package also has example configuration files for D435i cameras to use with VINS-FUSION. You will need to calibrate the D435i IMU using [this document](https://github.com/arjunskumar/vins-fusion-gpu-tx2-nano/blob/master/docs/RealSense_Depth_D435i_IMU_Calib.pdf). Then you need to calibrate the stereo setup+IMU using [Kalibr](https://github.com/ethz-asl/kalibr/wiki/multiple-camera-calibration)
 
 * For easy calibration with Kalibr, a docker image is available [here](https://github.com/mzahana/kalibr/tree/master/docker)
 
-* **NOTE** There is a shared folder between the container (container name is `vins_gpu`) and the host system (Xavier) in order to easily share files between the two. The shared folder is located in the home folder of the host (Xavier) under the name `vins_gpu_shared_volume`, and available inside the container's home folder under the name `shared_folder`
+* **NOTE** There is a shared folder between the container (container name is `vins_gpu`) and the host system (Xavier) in order to easily share files between the two. The shared folder is located in the home folder of the host (Xavier) under the name `vins_gpu_shared_volume`, and available inside the container's home folder under the name `shared_volume`
 
 ## Runing on Jetson Nano
 Althouhg this package was not tested on Jetson Nano, in theory it should work. However, you need to make sure that you increase the swap size
@@ -110,7 +110,7 @@ sudo nvpmodel -m 0
 ## Intel Realsense D435i
 * Install the docker image as described above
 * Calibrate the D435i IMU as described [here](https://github.com/arjunskumar/vins-fusion-gpu-tx2-nano/blob/master/docs/RealSense_Depth_D435i_IMU_Calib.pdf)
-* Calibrate the D435i stereo infrared cameras
+* Calibrate the D435i stereo infrared cameras using Kalibr
     * Prepare a [calibration target](https://github.com/ethz-asl/kalibr/wiki/calibration-targets). It is recommended to print an apriltag calibration target, you can download from [here](https://github.com/ethz-asl/kalibr/wiki/downloads)
     * Connect the D435i camera using the USB C cable
     * If you are using a PC, make sure to install Realsense SDK and [realsense-ros](https://github.com/IntelRealSense/realsense-ros) in order to run the D435i. Otherwise, you can run it directly in the docker container provided by this repo
@@ -118,17 +118,23 @@ sudo nvpmodel -m 0
         ```bash
         roslaunch jetson_vins_fusion_scripts rs_camera.launch
         ```
-    * Record a ROS bag with the D435i two infra camera topics
+    * Record image and imu topics. For convenience, there is a launch file that you can use, and the recorded bag will be saved inside `~/shared_volume`
         ```bash
-        rosbag record -o d43i_stereo_imu.bag /img1_tpoic /img2_topic
+        roslaunch jetson_vins_fusion_scripts rs_record_bag.launch
         ```
-        **NOTE** Make sure to write the topic names correctly
+        **NOTE** Make sure that you move the camera in all axes. See [this video](https://youtu.be/puNXsnrYWTY)
     * You will need to print a calibration target (apriltag target is recommended, see [here](https://github.com/ethz-asl/kalibr/wiki/calibration-targets) )
     * Calibrate the D435i stereo camera using Kalibr and the recorded rosbag. For convenience, a docker image with Kalibr is available [here](https://github.com/mzahana/kalibr/tree/master/docker)
     * Use Kalibr [camera-IMU calibration](https://github.com/ethz-asl/kalibr/wiki/camera-imu-calibration)
-    * Use the calibration results from Kalibr to update VINS [configuratoin files](https://github.com/mzahana/jetson_vins_fusion_scripts/tree/main/config/d435i). The VINS configuration files would be available inside the `vins_gpu` container in `~/catkin_ws/jetson_vins_fusion_scripts/config/d435i`
-* Inside the container terminal, run `vins` nodes
+        * You will need to provide IMU calibration Yaml file (you can use `imu_utils` package, and the multi-camera calibration results by Kalibr, and a ROS bag that have images and IMU topics
+    * Use the camera-IMU calibration results from Kalibr to update VINS [configuratoin files](https://github.com/mzahana/jetson_vins_fusion_scripts/tree/main/config/d435i). The VINS configuration files would be available inside the `vins_gpu` container in `~/catkin_ws/jetson_vins_fusion_scripts/config/d435i`, inside the container
+* Inside the container's terminal, run `vins` nodes
 ```bash
 roslaunch jetson_vins_fusion_scripts vins.launch config_file:=/root/catkin_ws/src/
 jetson_vins_fusion_scripts/config/d435i/rs_stereo_imu_confg.yaml
 ```
+* VINS configuration files can also be placed in the shared directory betwee the the vins container and Jetson file system. Simply place the config files in the `~/vins_shared_volume` of Jetson, and it will be available inside the `~/shared_voluem` inside the container. Then you can, for example, launch the nodes as follows
+```bash
+roslaunch jetson_vins_fusion_scripts vins.launch config_file:=/root/shared_volume/vins_config/d435i/rs_stereo_imu_confg.yaml
+```
+Here (Jetson),  I created a folder `~/vins_shared_volume/vins_config/d435i` and placed `left.yaml` & `right.yaml` & `rs_stereo_imu_confg.yaml` files in it
